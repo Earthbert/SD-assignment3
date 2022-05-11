@@ -13,6 +13,8 @@
 #include <string.h>
 #include <errno.h>
 
+#include "error_msg.h"
+
 /* useful macro for handling error codes */
 #define DIE(assertion, call_description)				\
 	do {												\

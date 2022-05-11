@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <string.h>
 #include "tree.h"
+#include "utils.h"
 #define LINE_MAX_LEN 1000
 #define TOKEN_MAX_LEN 300
 
@@ -15,6 +16,15 @@
 #define RMREC "rmrec"
 #define MV "mv"
 #define CP "cp"
+
+char *strdup(char *s)
+{
+	int len = strlen(s) + 1;
+	char *new_s = (char *)calloc(len, sizeof(char));
+	DIE(!new_s, ALLOC_ERROR);
+	memcpy(new_s, s, len);
+	return new_s;
+}
 
 void execute_command(char *cmd, char *arg1, char *arg2) {
     printf("$ %s %s %s\n", cmd, arg1, arg2);
