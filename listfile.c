@@ -1,9 +1,10 @@
 #include <stdio.h>
 #include <stdlib.h>
-#include "error_msg.h"
 #include "listfile.h"
 #include "tree.h"
 #include "utils.h"
+
+#define LIST_UNINIT "List uninitialized\n"
 
 #define FREE_FILE_OR_DIR(file) if (file->type == FILE_NODE) \
     freeFile(file); else    \
@@ -33,7 +34,7 @@ void addNode(List *list, TreeNode *info) {
     node->info = info;
 }
 
-void print_list(List *list) {
+void printList(List *list) {
     DIE(!list, LIST_UNINIT);
 
     ListNode *node = list->head;
@@ -49,15 +50,13 @@ TreeNode *findNode(List *list, char *name) {
     ListNode *node = list->head;
 
     while (node) {
-        if (!strcmp(name, node->info->name))
-            break;
+        if (!strcmp(name, node->info->name)) {
+            return node->info;
+        }
         node = node->next;
     }
 
-    if (!node)
-        return NULL;
-
-    return node->info;
+    return NULL;
 }
 
 void removeNode(List *list, char *name) {

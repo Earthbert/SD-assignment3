@@ -3,7 +3,7 @@
 #include "tree.h"
 
 void addNode(List *list, TreeNode *info);
-void print_list(List *list);
+void printList(List *list);
 TreeNode *findNode(List *list, char *name);
 void removeNode(List *list, char *name);
 void freeList(List *list);

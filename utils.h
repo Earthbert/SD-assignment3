@@ -13,7 +13,7 @@
 #include <string.h>
 #include <errno.h>
 
-#include "error_msg.h"
+#define ALLOC_ERROR "Allocation error\n"
 
 /* useful macro for handling error codes */
 #define DIE(assertion, call_description)				\
