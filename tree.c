@@ -8,12 +8,6 @@
 #define FOLDER_NAME_LEN 30
 #define PATH_LEN 1024
 
-#define DIR_EXISTS(dirname) printf   \
-("mkdir: cannot create directory ‘%s’: File exists", dirname);  \
-
-#define ERROR_TREE(path) printf   \
-("%s [error opening dir]\n\n0 directories, 0 files\n", path);   \
-
 #define PARSE_PATH(Path, FolderName)		\
 	sscanf(Path, " %[^\57]", FolderName);	\
 	Path = (strchr(Path, '/') + 1);		\
@@ -67,20 +61,25 @@ static TreeNode *createFolder(char *folderName) {
     return Folder;
 }
 
-static TreeNode *changeDir(TreeNode *Folder, char *path) {
-    if (!Folder || Folder->type == FILE_NODE) {
+static TreeNode *findFile(TreeNode *Folder, char *path) {
+    if (!Folder) {
         return NULL;
     }
 
+    if (Folder->type == FILE_NODE) {
+        return Folder;
+    }
+
     char folderName[FOLDER_NAME_LEN];
+
     PARSE_PATH(path, folderName)
 
     TreeNode *nextFolder = findNode((List *)Folder->content, folderName);
 
-    if (path == (char *)1)
+    if (path == (char *)1 || *path == '\0')
         return nextFolder;
 
-    changeDir(nextFolder, path);
+    findFile(nextFolder, path);
 }
 
 static void printPath(TreeNode *Folder, char *path) {
@@ -152,7 +151,6 @@ void ls(TreeNode* currentNode, char* arg) {
     printList((List *)currentNode->content);
 }
 
-
 void pwd(TreeNode* treeNode) {
     char *path = calloc(PATH_LEN, sizeof(char));
     DIE(!path, ALLOC_ERROR);
@@ -161,16 +159,19 @@ void pwd(TreeNode* treeNode) {
 
 
 TreeNode* cd(TreeNode* currentNode, char* path) {
-    return changeDir(currentNode, path);
+    TreeNode *dir = findFile(currentNode, path);
+    if (!dir)
+        printf("cd: no such file or directory: %s", path);
+    return dir;
 }
 
 
 void tree(TreeNode* currentNode, char* arg) {
     TreeNode *Folder;
     if (strcmp(arg, NO_ARG)) {
-        Folder = changeDir(currentNode, arg);
+        Folder = findFile(currentNode, arg);
         if (Folder == NULL) {
-            ERROR_TREE(arg);
+            printf("%s [error opening dir]\n\n0 directories, 0 files\n", arg);
         }
     } else {
         Folder = currentNode;
@@ -183,7 +184,7 @@ void tree(TreeNode* currentNode, char* arg) {
 
 void mkdir(TreeNode* currentNode, char* folderName) {
     if (findNode((List *)currentNode->content, folderName)) {
-        DIR_EXISTS(folderName);
+        printf("mkdir: cannot create directory ‘%s’: File exists", folderName);
         return;
     }
 
@@ -194,17 +195,35 @@ void mkdir(TreeNode* currentNode, char* folderName) {
 
 
 void rmrec(TreeNode* currentNode, char* resourceName) {
-    // TODO
+    TreeNode *rmvNode = findNode((List *)currentNode->content, resourceName);
+    if (!rmvNode)
+        printf("rmrec: failed to remove '%s': No such file or directory", resourceName);
+    
+    FREE_FILE_OR_DIR(rmvNode)
 }
 
 
 void rm(TreeNode* currentNode, char* fileName) {
-    // TODO
+    TreeNode *rmvNode = findNode((List *)currentNode->content, fileName);
+    if (!rmvNode)
+        printf("rm: failed to remove '%s': No such file or directory", fileName);
+    if (rmvNode->type == FOLDER_NODE)
+        printf("rm: cannot remove '%s': Is a directory", fileName);
+
+    removeNode((List *)currentNode->content, fileName);
 }
 
 
 void rmdir(TreeNode* currentNode, char* folderName) {
-    // TODO
+    TreeNode *rmvNode = findNode((List *)currentNode->content, folderName);
+    if (!rmvNode)
+        printf("rmdir: failed to remove '%s': No such file or directory", folderName);
+    if (!rmvNode->content)
+        printf("rmdir: failed to remove '%s': Directory not empty", folderName);
+    if (rmvNode->type != FOLDER_NODE)
+        printf("rmdir: failed to remove '%s': Not a directory", folderName);
+
+    removeNode((List *)currentNode->content, folderName);
 }
 
 
@@ -221,10 +240,17 @@ void touch(TreeNode* currentNode, char* fileName, char* fileContent) {
 
 
 void cp(TreeNode* currentNode, char* source, char* destination) {
-    // TODO
+    TreeNode *sourceFile = findFile(currentNode, source);
+    TreeNode *destFile = findFile(currentNode, destination);
+
+    if (sourceFile->type == FOLDER_NODE) {
+        printf("cp: -r not specified; omitting directory '%s'\n", source);
+        return;
+    }
+
+    
 }
 
 void mv(TreeNode* currentNode, char* source, char* destination) {
     // TODO
 }
-
