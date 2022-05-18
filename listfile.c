@@ -41,6 +41,7 @@ void printList(List *list) {
 
     while (node) {
         printf("%s\n", node->info->name);
+        node = node->next;
     }
 }
 
@@ -59,18 +60,19 @@ TreeNode *findNode(List *list, char *name) {
     return NULL;
 }
 
-void removeNode(List *list, char *name) {
+TreeNode* removeNode(List *list, char *name) {
     DIE(!list, LIST_UNINIT);
 
     if (!list->head) {
-        return;
+        return NULL;
     }
     ListNode *node = list->head;
 
     if (!strcmp(name, node->info->name)) {
         list->head = node->next;
-        FREE_FILE_OR_DIR(node->info)
+        TreeNode *retNode = node->info;
         free(node);
+        return retNode;
     }
     
     ListNode *prev_node = NULL;
@@ -82,11 +84,12 @@ void removeNode(List *list, char *name) {
     }
 
     if (!node)
-        return;
+        return NULL;
 
     prev_node->next = node->next;
-    FREE_FILE_OR_DIR(node->info)
+    TreeNode *retNode = node->info;
     free(node);
+    return retNode;
 }
 
 void freeList(List *list) {
@@ -100,4 +103,5 @@ void freeList(List *list) {
         FREE_FILE_OR_DIR(tmp->info)
         free(tmp);
     }
+    free(list);
 }

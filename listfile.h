@@ -5,7 +5,7 @@
 void addNode(List *list, TreeNode *info);
 void printList(List *list);
 TreeNode *findNode(List *list, char *name);
-void removeNode(List *list, char *name);
+TreeNode* removeNode(List *list, char *name);
 void freeList(List *list);
 
 #endif  // LISTFILE_H_

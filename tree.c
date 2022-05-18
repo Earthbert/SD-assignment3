@@ -8,13 +8,29 @@
 #define FOLDER_NAME_LEN 30
 #define PATH_LEN 1024
 
-#define PARSE_PATH(Path, FolderName)		\
-	sscanf(Path, " %[^\57]", FolderName);	\
-	Path = (strchr(Path, '/') + 1);		\
-
 #define FREE_FILE_OR_DIR(file) if (file->type == FILE_NODE) \
     freeFile(file); else    \
     freeDirectory(file);    \
+
+Path parsePath(char *path)
+{
+	Path retPath;
+	retPath.nrFiles = 1;
+
+	for (int i = 0; path[i] != '\0'; i++) {
+		if (path[i] == '/' && path[i + 1] != '\0')
+			retPath.nrFiles++;
+	}
+	retPath.filenames = calloc(retPath.nrFiles, sizeof(char *));
+
+	char *token = strtok(path, "/");
+	for (int i = 0; i < retPath.nrFiles && token; i++) {
+		retPath.filenames[i] = token;
+		token = strtok(NULL, "/");
+	}
+	return retPath;
+}
+
 
 void freeFile(TreeNode *file) {
     DIE(file->type == FOLDER_NODE, "freeing a file freeDirectory function\n");
@@ -32,7 +48,7 @@ void freeDirectory(TreeNode *file) {
 }
 
 static TreeNode *createFile(char *fileName, char *fileContent) {
-    TreeNode *File;
+    TreeNode *File = calloc(1, sizeof(TreeNode));
     File->type = FILE_NODE;
 
     unsigned int len = strlen(fileName) + 1;
@@ -49,7 +65,7 @@ static TreeNode *createFile(char *fileName, char *fileContent) {
 }
 
 static TreeNode *createFolder(char *folderName) {
-    TreeNode *Folder;
+    TreeNode *Folder = calloc(1, sizeof(TreeNode));
     Folder->type = FOLDER_NODE;
 
     unsigned int len = strlen(folderName) + 1;
@@ -61,25 +77,26 @@ static TreeNode *createFolder(char *folderName) {
     return Folder;
 }
 
-static TreeNode *findFile(TreeNode *Folder, char *path) {
-    if (!Folder) {
+static TreeNode *findFile(TreeNode *Folder, Path parsedPath) {
+    if (Folder->type == FILE_NODE) {
         return NULL;
     }
+    TreeNode *currentFolder = Folder;
+    for (int i = 0; i < parsedPath.nrFiles; i++) {
+        if (currentFolder->type != FOLDER_NODE)
+            return NULL;
+        if (!strcmp(parsedPath.filenames[i], ".."))
+            currentFolder = currentFolder->parent;
+        else {
+            printList((List *)currentFolder->content);
+            currentFolder = findNode((List *)currentFolder->content, parsedPath.filenames[i]);
+        }
 
-    if (Folder->type == FILE_NODE) {
-        return Folder;
+        if (currentFolder == NULL)
+            return NULL;
     }
 
-    char folderName[FOLDER_NAME_LEN];
-
-    PARSE_PATH(path, folderName)
-
-    TreeNode *nextFolder = findNode((List *)Folder->content, folderName);
-
-    if (path == (char *)1 || *path == '\0')
-        return nextFolder;
-
-    findFile(nextFolder, path);
+    return currentFolder;
 }
 
 static void printPath(TreeNode *Folder, char *path) {
@@ -128,13 +145,14 @@ FileTree createFileTree(char* rootFolderName) {
     root->content = calloc(1, sizeof(List));
     DIE(!root->content, ALLOC_ERROR);
 
+    free(rootFolderName);
+
     fileTree.root = root;
     return fileTree;
 }
 
 void freeTree(FileTree fileTree) {
-    free(fileTree.root->name);
-    freeDirectory((TreeNode *)fileTree.root->content);
+    freeDirectory(fileTree.root);
 }
 
 
@@ -159,9 +177,14 @@ void pwd(TreeNode* treeNode) {
 
 
 TreeNode* cd(TreeNode* currentNode, char* path) {
-    TreeNode *dir = findFile(currentNode, path);
-    if (!dir)
+    Path parsedPath = parsePath(path);
+    TreeNode *dir = findFile(currentNode, parsedPath);
+    free(parsedPath.filenames);
+
+    if (!dir || dir->type == FILE_NODE) {
         printf("cd: no such file or directory: %s", path);
+        return NULL;
+    }
     return dir;
 }
 
@@ -169,7 +192,8 @@ TreeNode* cd(TreeNode* currentNode, char* path) {
 void tree(TreeNode* currentNode, char* arg) {
     TreeNode *Folder;
     if (strcmp(arg, NO_ARG)) {
-        Folder = findFile(currentNode, arg);
+        Path parsedPath = parsePath(arg);
+        Folder = findFile(currentNode, parsedPath);
         if (Folder == NULL) {
             printf("%s [error opening dir]\n\n0 directories, 0 files\n", arg);
         }
@@ -191,6 +215,7 @@ void mkdir(TreeNode* currentNode, char* folderName) {
     TreeNode *New_Folder = createFolder(folderName);
     New_Folder->parent = currentNode;
     addNode((List *)currentNode->content, New_Folder);
+    free(folderName);
 }
 
 
@@ -236,21 +261,90 @@ void touch(TreeNode* currentNode, char* fileName, char* fileContent) {
     New_File->parent = currentNode;
 
     addNode((List *)currentNode->content, New_File);
+
+    free(fileName);
+    free(fileContent);
 }
 
-
 void cp(TreeNode* currentNode, char* source, char* destination) {
-    TreeNode *sourceFile = findFile(currentNode, source);
-    TreeNode *destFile = findFile(currentNode, destination);
+    char *originalDest = strdup(destination);
 
-    if (sourceFile->type == FOLDER_NODE) {
+    Path sourcePath = parsePath(source);
+    Path destPath = parsePath(destination);
+
+    TreeNode *sourceFile = findFile(currentNode, sourcePath);
+    TreeNode *destFile = findFile(currentNode, destPath);
+
+    if (!sourceFile) {
+        printf("Source file doesn't exist\n");
+    }
+    else if (sourceFile->type == FOLDER_NODE) {
         printf("cp: -r not specified; omitting directory '%s'\n", source);
-        return;
+    }
+    else if (!destFile) {
+        destPath.nrFiles--;
+        destFile = findFile(currentNode, destPath);
+        if (!destFile) {
+            printf("cp: failed to access '%s': Not a directory", originalDest);
+        } else {
+            touch(destFile, destPath.filenames[destPath.nrFiles + 1], (char *)sourceFile->content);
+        }
+    }
+    else if (destFile->type == FOLDER_NODE) {
+        touch(destFile, sourceFile->name, (char *)sourceFile->content);
+    }
+    else {
+        free(destFile->content);
+        int sourceLen = strlen((char *)sourceFile->content) + 1;
+        destFile->content = calloc(sourceLen, sizeof(char));
+        memcpy(destFile->content, sourceFile->content, sourceLen);
     }
 
-    
+    free(destPath.filenames);
+    free(sourcePath.filenames);
+    free(originalDest);
 }
 
 void mv(TreeNode* currentNode, char* source, char* destination) {
-    // TODO
+        char *originalDest = strdup(destination);
+
+    Path sourcePath = parsePath(source);
+    Path destPath = parsePath(destination);
+
+    TreeNode *sourceFile = findFile(currentNode, sourcePath);
+    TreeNode *destFile = findFile(currentNode, destPath);
+
+    if (!sourceFile) {
+        printf("Source file doesn't exist\n");
+    }
+    else if (!destFile) {
+        destPath.nrFiles--;
+        destFile = findFile(currentNode, destPath);
+        if (!destFile) {
+            printf("mv: failed to access '%s': Not a directory", originalDest);
+        } else {
+            sourceFile = removeNode((List *)sourceFile->parent->content, sourceFile->name);
+            if (sourceFile->type == FILE_NODE) {
+                touch(destFile, destPath.filenames[destPath.nrFiles + 1], (char *)sourceFile->content);
+                free(sourceFile->name);
+                free(sourceFile->content);
+                free(sourceFile);
+            }
+        }
+    }
+    else if (destFile->type == FOLDER_NODE) {
+        sourceFile = removeNode((List *)sourceFile->parent->content, sourceFile->name);
+        addNode((List *)destFile->content, sourceFile);
+    }
+    else {
+        sourceFile = removeNode((List *)sourceFile->parent->content, sourceFile->name);
+        free(destFile->content);
+        int sourceLen = strlen((char *)sourceFile->content) + 1;
+        destFile->content = calloc(sourceLen, sizeof(char));
+        memcpy(destFile->content, sourceFile->content, sourceLen);
+    }
+
+    free(destPath.filenames);
+    free(sourcePath.filenames);
+    free(originalDest);
 }

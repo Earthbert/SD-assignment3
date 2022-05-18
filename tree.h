@@ -11,11 +11,18 @@ typedef struct TreeNode TreeNode;
 typedef struct FileTree FileTree;
 typedef struct ListNode ListNode;
 typedef struct List List;
+typedef struct Path Path;
 
 enum TreeNodeType {
     FILE_NODE,
     FOLDER_NODE
 };
+
+struct Path {
+    char** filenames;
+    int nrFiles;
+};
+
 
 struct FileContent {
     char* text;
