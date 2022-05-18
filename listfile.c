@@ -28,10 +28,11 @@ void addNode(List *list, TreeNode *info) {
         node = node->next;
     }
 
-    prev_node->next = node;
     node = calloc(1, sizeof(ListNode));
     DIE(!list->head, ALLOC_ERROR);
     node->info = info;
+
+    prev_node->next = node;
 }
 
 void printList(List *list) {
