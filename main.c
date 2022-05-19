@@ -1,7 +1,6 @@
 #include <stdio.h>
 #include <string.h>
 #include "tree.h"
-#include "utils.h"
 #define LINE_MAX_LEN 1000
 #define TOKEN_MAX_LEN 300
 
@@ -21,7 +20,8 @@ void execute_command(char *cmd, char *arg1, char *arg2) {
     printf("$ %s %s %s\n", cmd, arg1, arg2);
 }
 
-TreeNode* process_command(TreeNode* currentFolder, char cmd[3][TOKEN_MAX_LEN], int token_count) {
+TreeNode* process_command(TreeNode* currentFolder,
+        char cmd[3][TOKEN_MAX_LEN]) {
     execute_command(cmd[0], cmd[1], cmd[2]);
     if (!strcmp(cmd[0], LS)) {
         ls(currentFolder, cmd[1]);
@@ -53,7 +53,6 @@ TreeNode* process_command(TreeNode* currentFolder, char cmd[3][TOKEN_MAX_LEN], i
 }
 
 int main() {
-    FILE *f = fopen("commands.in", "r");
     char line[LINE_MAX_LEN];
     char cmd[3][TOKEN_MAX_LEN];
     char *token;
@@ -61,7 +60,7 @@ int main() {
     FileTree fileTree = createFileTree(strdup("root"));
     TreeNode* currentFolder = fileTree.root;
 
-    while (fgets(line, sizeof(line), f) != NULL) {
+    while (fgets(line, sizeof(line), stdin) != NULL) {
         line[strlen(line)-1] = 0;
 
         cmd[0][0] = cmd[1][0] = cmd[2][0] = 0;
@@ -74,11 +73,10 @@ int main() {
 
             token = strtok(NULL, " ");
         }
-        currentFolder = process_command(currentFolder, cmd, token_idx);
+        currentFolder = process_command(currentFolder, cmd);
     }
 
     freeTree(fileTree);
 
-    fclose(f);
     return 0;
 }

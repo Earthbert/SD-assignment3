@@ -32,7 +32,7 @@ struct FolderContent {
     List* children;
 };
 
-struct TreeNode {   
+struct TreeNode {
     TreeNode* parent;
     char* name;
     enum TreeNodeType type;

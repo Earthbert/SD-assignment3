@@ -62,7 +62,7 @@ TreeNode* removeNode(List *list, char *name) {
         free(node);
         return retNode;
     }
-    
+
     ListNode *prevNode = NULL;
     while (node) {
         if (!strcmp(name, node->info->name))
