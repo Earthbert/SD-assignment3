@@ -157,15 +157,18 @@ void freeTree(FileTree fileTree) {
 
 void ls(TreeNode* currentNode, char* arg) {
     if (strcmp(arg, NO_ARG)) {
-        TreeNode* arg_file = findNode((List *)currentNode->content, arg);
-        if (!arg_file) {
+        TreeNode* argFile = findNode((List *)currentNode->content, arg);
+        if (!argFile) {
             printf("ls: cannot access '%s': No such file or directory", arg);
         }
 
-        if (arg_file->type == FOLDER_NODE)
-            printList((List *)arg_file->content);
-        else
-            printf("%s\n", (char *)arg_file->content);
+        if (argFile->type == FOLDER_NODE) {
+            printList((List *)argFile->content);
+        }
+        else {
+            printf("%s: ", argFile->name);
+            printf("%s\n", (char *)argFile->content);
+        }
 
         return;
     }
@@ -177,6 +180,9 @@ void pwd(TreeNode* treeNode) {
     char *path = calloc(PATH_LEN, sizeof(char));
     DIE(!path, ALLOC_ERROR);
     printPath(treeNode, path);
+    path[strlen(path) - 1] = 0;
+    printf("%s", path);
+    free(path);
 }
 
 
@@ -225,34 +231,47 @@ void mkdir(TreeNode* currentNode, char* folderName) {
 
 void rmrec(TreeNode* currentNode, char* resourceName) {
     TreeNode *rmvNode = findNode((List *)currentNode->content, resourceName);
-    if (!rmvNode)
+    if (!rmvNode) {
         printf("rmrec: failed to remove '%s': No such file or directory", resourceName);
-    
+        return;
+    }
+    rmvNode = removeNode((List *)currentNode->content, resourceName);
     FREE_FILE_OR_DIR(rmvNode)
 }
 
 
 void rm(TreeNode* currentNode, char* fileName) {
     TreeNode *rmvNode = findNode((List *)currentNode->content, fileName);
-    if (!rmvNode)
+    if (!rmvNode) {
         printf("rm: failed to remove '%s': No such file or directory", fileName);
-    if (rmvNode->type == FOLDER_NODE)
+        return;
+    }
+    if (rmvNode->type == FOLDER_NODE) {
         printf("rm: cannot remove '%s': Is a directory", fileName);
-
-    removeNode((List *)currentNode->content, fileName);
+        return;
+    }
+    rmvNode = removeNode((List *)currentNode->content, fileName);
+    FREE_FILE_OR_DIR(rmvNode)
 }
 
 
 void rmdir(TreeNode* currentNode, char* folderName) {
     TreeNode *rmvNode = findNode((List *)currentNode->content, folderName);
-    if (!rmvNode)
+    if (!rmvNode) {
         printf("rmdir: failed to remove '%s': No such file or directory", folderName);
-    if (!rmvNode->content)
+        return;
+    }
+    if (!rmvNode->content) {
         printf("rmdir: failed to remove '%s': Directory not empty", folderName);
-    if (rmvNode->type != FOLDER_NODE)
+        return;
+    }
+    if (rmvNode->type != FOLDER_NODE) {
         printf("rmdir: failed to remove '%s': Not a directory", folderName);
+        return;
+    }
 
-    removeNode((List *)currentNode->content, folderName);
+    rmvNode = removeNode((List *)currentNode->content, folderName);
+    FREE_FILE_OR_DIR(rmvNode);
 }
 
 
@@ -278,9 +297,9 @@ void cp(TreeNode* currentNode, char* source, char* destination) {
     TreeNode *sourceFile = findFile(currentNode, sourcePath);
     TreeNode *destFile = findFile(currentNode, destPath);
 
-    while (0) {
+    do {
         if (!sourceFile) {
-            printf("Source file doesn't exist\n");
+            printf("cp: source file doesn't exist\n");
             break;
         }
         if (sourceFile->type == FOLDER_NODE) {
@@ -294,17 +313,17 @@ void cp(TreeNode* currentNode, char* source, char* destination) {
                 printf("cp: failed to access '%s': Not a directory", originalDest);
                 break;
             }
-            touch(destFile, destPath.filenames[destPath.nrFiles - 1], (char *)sourceFile->content);
+            touch(destFile, strdup(destPath.filenames[destPath.nrFiles - 1]), strdup((char *)sourceFile->content));
         }
         if (destFile->type == FOLDER_NODE) {
-            touch(destFile, sourceFile->name, (char *)sourceFile->content);
+            touch(destFile, strdup(sourceFile->name), strdup((char *)sourceFile->content));
             break;
         }
         free(destFile->content);
         int sourceLen = strlen((char *)sourceFile->content) + 1;
         destFile->content = calloc(sourceLen, sizeof(char));
         memcpy(destFile->content, sourceFile->content, sourceLen);
-    }
+    } while (0);
 
     free(destPath.filenames);
     free(sourcePath.filenames);
@@ -332,7 +351,7 @@ void mv(TreeNode* currentNode, char* source, char* destination) {
         } else {
             sourceFile = removeNode((List *)sourceFile->parent->content, sourceFile->name);
             if (sourceFile->type == FILE_NODE) {
-                touch(destFile, destPath.filenames[destPath.nrFiles + 1], (char *)sourceFile->content);
+                touch(destFile, strdup(destPath.filenames[destPath.nrFiles + 1]), strdup((char *)sourceFile->content));
                 free(sourceFile->name);
                 free(sourceFile->content);
                 free(sourceFile);

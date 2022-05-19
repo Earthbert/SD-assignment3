@@ -14,25 +14,12 @@
 void addNode(List *list, TreeNode *info) {
     DIE(!list, LIST_UNINIT);
 
-    if (list->head == NULL) {
-        list->head = calloc(1, sizeof(ListNode));
-        DIE(!list->head, ALLOC_ERROR);
-        list->head->info = info;
-        return;
-    }
-
-    ListNode *node = list->head;
-    ListNode *prev_node;
-    while (node) {
-        prev_node = node;
-        node = node->next;
-    }
-
-    node = calloc(1, sizeof(ListNode));
-    DIE(!list->head, ALLOC_ERROR);
+    ListNode *node = calloc(1, sizeof(ListNode));
+    DIE(!node, ALLOC_ERROR);
     node->info = info;
 
-    prev_node->next = node;
+    node->next = list->head;
+    list->head = node;
 }
 
 void printList(List *list) {
@@ -76,18 +63,18 @@ TreeNode* removeNode(List *list, char *name) {
         return retNode;
     }
     
-    ListNode *prev_node = NULL;
+    ListNode *prevNode = NULL;
     while (node) {
-        prev_node = node;
         if (!strcmp(name, node->info->name))
             break;
+        prevNode = node;
         node = node->next;
     }
 
     if (!node)
         return NULL;
 
-    prev_node->next = node->next;
+    prevNode->next = node->next;
     TreeNode *retNode = node->info;
     free(node);
     return retNode;
